@@ -1,6 +1,7 @@
 import express from 'express';
 import { openDb } from './database';
 import fetch from 'node-fetch';
+import logger from './logger';
 
 const app = express();
 const port = 3000;
@@ -18,6 +19,7 @@ app.post('/stores', async (req, res) => {
     'INSERT INTO stores (name, street, number, neighborhood, city, state, cep, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [name, street, number, neighborhood, city, state, cep, latitude, longitude]
   );
+  logger.info('Store added', { name, street, number, neighborhood, city, state, cep, latitude, longitude });
   res.status(201).send({ message: 'Store added successfully' });
 });
 
@@ -25,10 +27,10 @@ app.get('/stores/:cep', async (req, res) => {
   const { cep } = req.params;
   const db = await openDb();
 
-  // Fetch the latitude and longitude of the provided CEP
   const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
   const data: any = await response.json();
   if (data.erro) {
+    logger.error('CEP not found', { cep });
     return res.status(404).send({ message: 'CEP not found' });
   }
 
@@ -37,25 +39,26 @@ app.get('/stores/:cep', async (req, res) => {
   const geoResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
   const geoData: any = await geoResponse.json();
   if (geoData.length === 0) {
+    logger.error('Geolocation not found for the provided CEP', { cep, address });
     return res.status(404).send({ message: 'Geolocation not found for the provided CEP' });
   }
 
   const { lat, lon } = geoData[0];
 
-  // Fetch all stores and calculate the distance
   const stores = await db.all('SELECT * FROM stores');
   const storesWithDistance = stores.map((store: any) => {
     const distance = calculateDistance(parseFloat(lat), parseFloat(lon), store.latitude, store.longitude);
     return { ...store, distance };
   });
 
-  // Filter stores within 100km and sort by distance
   const nearbyStores = storesWithDistance.filter((store: any) => store.distance <= 100).sort((a: any, b: any) => a.distance - b.distance);
 
   if (nearbyStores.length === 0) {
+    logger.info('No stores found within 100km', { cep });
     return res.status(404).send({ message: 'No stores found within 100km' });
   }
 
+  logger.info('Stores found', { cep, nearbyStores });
   res.send(nearbyStores);
 });
 
@@ -73,5 +76,5 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+  logger.info(`Server is running at http://localhost:${port}`);
 });
