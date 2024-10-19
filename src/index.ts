@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { openDb } from './database';
 import fetch from 'node-fetch';
 import logger from './logger';
@@ -8,11 +8,11 @@ const port = 3000;
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.send('Physical Store API');
 });
 
-app.post('/stores', async (req, res) => {
+app.post('/stores', async (req: Request, res: Response) => {
   const { name, street, number, neighborhood, city, state, cep, latitude, longitude } = req.body;
   const db = await openDb();
   await db.run(
@@ -23,7 +23,7 @@ app.post('/stores', async (req, res) => {
   res.status(201).send({ message: 'Store added successfully' });
 });
 
-app.get('/stores/:cep', async (req, res) => {
+app.get('/stores/:cep', async (req: Request, res: Response) => {
   const { cep } = req.params;
   const db = await openDb();
 
@@ -63,7 +63,7 @@ app.get('/stores/:cep', async (req, res) => {
 });
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Radius of the Earth in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
