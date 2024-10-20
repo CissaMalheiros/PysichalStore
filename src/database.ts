@@ -7,3 +7,4 @@ export async function openDb(): Promise<Database> {
     driver: sqlite3.Database
   });
 }
+
